@@ -5,6 +5,11 @@ services:
     profiles: ["prod"]
     ports:
       - "8081:8080"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.laravel.rule=Host(`tu-dominio.com`)"
+      - "traefik.http.routers.laravel.entrypoints=web"
+      - "traefik.http.services.laravel.loadbalancer.server.port=8080"
     restart: unless-stopped
 
   php:
