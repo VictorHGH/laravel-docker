@@ -44,7 +44,7 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
 ```
 Incluye:
 - Montaje de `./src` en nginx/php/composer (recuerda que `src/` no se versiona aquí).
-- Xdebug activo (target `base`), phpMyAdmin en `http://localhost:8090`.
+- Xdebug activo (target `base`), phpMyAdmin en `http://localhost:${PMA_PORT:-8090}`.
 - Datos MySQL en `./mysql_dev_data` (no viajan a git; portátiles entre máquinas si sincronizas la carpeta).
 - Opcache con `validate_timestamps=1` para reflejar cambios al guardar.
 
