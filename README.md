@@ -11,6 +11,7 @@
  - (Opcional) rsync para despliegue.
 
  ------------------------------------------------------------------------------
+
 ## Qué incluye
 
  Base / prod-like (docker-compose.yml)
@@ -28,6 +29,7 @@
  - MySQL portátil (persistencia en ./mysql_dev_data)
 
  ------------------------------------------------------------------------------
+
 ## Variables de entorno (archivo .env en la raíz)
 
  Variables principales:
@@ -43,6 +45,7 @@
  Nota: este .env es de infraestructura (no es el .env de Laravel dentro de src/).
 
  ------------------------------------------------------------------------------
+
 ## Estructura del repo
 
 - docker-compose.yml: base/prod-like (Nginx, PHP, MySQL, vendor en build, red ${PROJECT_NAME}-net, volumen ${PROJECT_NAME}-mysql-data).
@@ -55,6 +58,7 @@
 - exclude-for-prod.txt: exclusiones sugeridas para rsync a prod.
 
 ------------------------------------------------------------------------------
+
 ## Comandos rápidos
 
  1) Cargar aliases:
@@ -80,6 +84,7 @@
    Nota: requiere que existan src/composer.json y src/public antes del build.
 
  ------------------------------------------------------------------------------
+
 ## Flujo completo: crear un proyecto desde cero
 
  1) Copiar la infraestructura a tu nuevo proyecto:
@@ -138,6 +143,7 @@
    dcdev logs mysql -f
 
  ------------------------------------------------------------------------------
+
 ## Producción / Staging
 
  Prerrequisitos (antes de dcprod up -d --build):
@@ -151,6 +157,7 @@
    dcprod down
 
  ------------------------------------------------------------------------------
+
 ## Deploy (rsync)
 
  Comando sugerido:
@@ -162,6 +169,7 @@
  - Vendor: se genera en el build (composer install --no-dev), por eso sí puedes excluir src/vendor/ en exclude-for-prod.txt.
 
  ------------------------------------------------------------------------------
+
 ## Notas de seguridad
 
  - phpMyAdmin sólo en dev (no está en compose base/prod).
@@ -169,6 +177,7 @@
  - Expón sólo los puertos necesarios (WEB_PORT y PMA_PORT solo en dev).
 
  ------------------------------------------------------------------------------
+
 ## Troubleshooting
 
  - phpMyAdmin no conecta:
