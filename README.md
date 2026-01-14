@@ -1,115 +1,88 @@
-# Entorno Laravel con Docker (dev y prod)
-
-## Qué es
-Base de infraestructura Docker para proyectos Laravel (este repo no versiona `./src`, solo la infra). Se trabaja con dos archivos: uno base “prod-like” y un override para desarrollo, sin perfiles; eliges entorno por el archivo que incluyes. En dev los datos de MySQL viven en `./mysql_dev_data/` (portátil y sin versionar). En prod se mantiene el volumen nombrado `mysql_data` y phpMyAdmin existe solo en dev.
-
-## Comandos rápidos
-- Desarrollo: `UID=$(id -u) GID=$(id -g) docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
-  - phpMyAdmin: `http://localhost:${PMA_PORT:-8090}`
-- Producción/Staging (sin dominio): `UID=$(id -u) GID=$(id -g) WEB_PORT=8081 docker compose up -d --build`
-  - Acceso app: `http://IP:${WEB_PORT:-8080}`
-
-Atajos opcionales
-- Carga los aliases en cada sesión de shell (no se instalan globalmente): `source ./docker-aliases.zsh` desde la raíz del proyecto. Si estás fuera del directorio, usa la ruta absoluta al script.
-- Esto define `dcdev` (dev) y `dcprod` (prod/staging) sin perfiles ni archivos extra.
-- Ejemplos rápidos:
-  - Dev: `dcdev up -d --build`, `dcdev composer install`, `dcdev exec php php artisan migrate`
-  - Prod/Staging: `dcprod up -d --build`
+# Entorno Docker Laravel (infra-only)
+Infraestructura lista para usar Laravel con Docker. Pensado para: equipos que quieren levantar un stack Laravel rápido (dev/prod-like) y que gestionan el código de la app fuera de este repo (aquí sólo hay infra).
 
 ## Requisitos
-- Docker y Docker Compose v2.
-- Puertos libres: 8080 (app por defecto) y 8090 solo para phpMyAdmin en dev. Si quieres otros puertos públicos, ajusta `WEB_PORT` (y `PMA_PORT` en dev).
-- El directorio `mysql_dev_data/` debe permanecer fuera de git; ya está en `.gitignore`/`.dockerignore`. También se ignora `src/` y `mysql_data/` en git (solo infra aquí).
-- El archivo raíz `.env` (versionado) define `PROJECT_NAME`/`COMPOSE_PROJECT_NAME`, tags/base images y puertos por defecto. Los recursos se nombran como `${PROJECT_NAME}-net` y `${PROJECT_NAME}-mysql-data`.
-- En prod debe existir `src/public` antes de `docker compose build` (asegura assets/entrypoint de Nginx).
+- Docker + Docker Compose plugin.
+- (Opcional) `rsync` para despliegue.
 
-## Estructura rápida
-- `docker-compose.yml`: base común (nginx + php-fpm + MySQL). Código empaquetado (`target: app`), Xdebug apagado, `APP_ENV=production`. Puerto configurable con `WEB_PORT` (app). MySQL usa volumen nombrado `${PROJECT_NAME}-mysql-data`. Red nombrada `${PROJECT_NAME}-net`. Imágenes basadas en tags de `.env`.
-- `docker-compose.dev.yml`: override dev (montajes de código, Xdebug, phpMyAdmin con restart relajado y `PMA_PORT`, servicio composer con imagen oficial, opcache ajustado). MySQL monta `./mysql_dev_data` para que los datos sean portátiles. Declara la misma red `${PROJECT_NAME}-net` para coherencia.
-- `dockerfiles/`: nginx (copia config y `public/`), php (multi-stage con Xdebug opcional). Composer usa imagen oficial, no Dockerfile propio. Base images parametrizadas vía args/`.env`.
-- `src/`: código de la app (no se versiona aquí); en dev se monta, en prod se copia en el build base. Nginx solo copia `public/`.
+## Qué incluye
+- Base/prod-like: Nginx, PHP-FPM (8.3), MySQL (8.0), volumen de datos, vendor generado en el build.
+- Dev override: monta `./src`, Xdebug, phpMyAdmin (sólo dev), composer service.
+- Nombre de proyecto y recursos semánticos via `.env` (`PROJECT_NAME`, `COMPOSE_PROJECT_NAME`).
 
-## Variables de entorno mínimas
-- Usa las plantillas versionadas y ajusta credenciales en el servidor:
-  ```bash
-  cp mysql/.env.example mysql/.env
-  cp src/.env.example src/.env
-  ```
-  Luego rellena claves/DB y genera `APP_KEY` (`php artisan key:generate`). Si usas rsync para desplegar, añade `--exclude-from='exclude-for-prod.txt'`. Ajusta `PROJECT_NAME` en `.env` para nombrar red/volúmenes/contendedores.
-- Usa tus UID/GID para permisos correctos: `UID=$(id -u) GID=$(id -g)`.
+## Variables de entorno (.env raíz)
+- `PROJECT_NAME` / `COMPOSE_PROJECT_NAME`: prefijo para contenedores/red/volúmenes.
+- `WEB_PORT`: puerto público de la app (default 8080).
+- `PMA_PORT`: puerto de phpMyAdmin en dev (default 8090).
+- Tags/base images: `MYSQL_IMAGE_TAG`, `PHPMYADMIN_IMAGE_TAG`, `COMPOSER_IMAGE_TAG`, `PHP_BASE_IMAGE`, `NGINX_BASE_IMAGE`, `XDEBUG_VERSION`, `REDIS_PECL_VERSION`.
 
-## Desarrollo
-```bash
-UID=$(id -u) GID=$(id -g) \
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
-```
-Incluye:
-- Montaje de `./src` en nginx/php/composer (recuerda que `src/` no se versiona aquí).
-- Xdebug activo (target `base`), phpMyAdmin en `http://localhost:${PMA_PORT:-8090}`.
-- Datos MySQL en `./mysql_dev_data` (no viajan a git; portátiles entre máquinas si sincronizas la carpeta).
-- Opcache con `validate_timestamps=1` para reflejar cambios al guardar.
+## Estructura del repo
+- `docker-compose.yml`: base/prod-like (Nginx, PHP, MySQL, vendor en build, red `${PROJECT_NAME}-net`, volumen `${PROJECT_NAME}-mysql-data`).
+- `docker-compose.dev.yml`: override dev (montajes, Xdebug, phpMyAdmin en `PMA_PORT`, composer service, MySQL portátil `mysql_dev_data`).
+- `dockerfiles/`: `php.dockerfile` (stage vendor con composer install), `nginx.dockerfile`, configs.
+- `nginx/`: `default.conf` para la app.
+- `mysql/`: `.env.example` (prod), `.env` (no versionado) requerido en runtime.
+- `mysql_dev_data/`: datos MySQL dev (portátil, fuera de git).
+- `src/`: código de la app (ignorado en git; incluye placeholders en `src/public`).
+- `exclude-for-prod.txt`: exclusiones sugeridas para rsync a prod.
 
-Comandos útiles (dev):
-- Flujo recomendado para crear proyecto dentro de `src`:
-  - `dcdev up -d --build`
-  - `dcdev composer create-project laravel/laravel .`
-  - `dcdev exec php php artisan key:generate`
-  - `dcdev exec php php artisan migrate`
-- Dependencias puntuales: `dcdev composer install`
-- APP_KEY: `dcdev exec php php artisan key:generate`
-- Migraciones: `dcdev exec php php artisan migrate`
-
-## Flujo rápido (dev y prod)
+## Comandos rápidos
 - Cargar aliases: `source ./docker-aliases.zsh`
-- Dev:
-  - `dcdev up -d --build`
-  - `dcdev composer create-project laravel/laravel .`
-  - `dcdev exec php php artisan key:generate`
-  - `dcdev exec php php artisan migrate`
-- Prod/staging:
-  - `dcprod up -d --build` (asegura `src/composer.json` y `src/public` presentes)
+- Dev: `dcdev up -d --build` (app en `WEB_PORT`, phpMyAdmin en `PMA_PORT`)
+- Composer dev: `dcdev composer install` / `dcdev composer create-project laravel/laravel .`
+- Artisan: `dcdev exec php php artisan <comando>`
+- Detener dev: `dcdev down`
+- Prod-like: `dcprod up -d --build` (asegura `src/composer.json` y `src/public` presentes)
 
-## Producción / Staging sin dominio
-```bash
-UID=$(id -u) GID=$(id -g) WEB_PORT=8081 \
-docker compose up -d --build
-```
-Acceso: `http://IP-del-servidor:${WEB_PORT:-8080}`.
-Incluye:
-- Código empaquetado en la imagen (`target: app`), sin montajes de host.
-- MySQL con volumen nombrado `mysql_data` (persistente en el host).
-- Xdebug deshabilitado, `APP_ENV=production`, `APP_DEBUG=false`.
-- Tags de imágenes y puertos vienen de `.env` (puedes sobreescribirlos al exportar variables).
-- Nota: antes de `dcprod up -d --build` asegúrate de que existan `src/composer.json` (y preferiblemente `src/composer.lock`); el build genera `vendor/` dentro de la imagen.
+## Flujo completo: crear un proyecto desde cero
+1) Copiar la infraestructura a tu nuevo proyecto:
+   - `cp -a /ruta/infra-base /ruta/nuevo-proyecto && cd /ruta/nuevo-proyecto`
+2) Editar `.env` raíz:
+   - Ajusta `PROJECT_NAME`, `WEB_PORT`, `PMA_PORT` y (si quieres) tags de imágenes.
+3) Crear `mysql/.env` desde la plantilla:
+   - `cp mysql/.env.example mysql/.env` y edita credenciales.
+4) Preparar datos portátiles dev:
+   - `mkdir -p mysql_dev_data`
+5) Levantar DEV:
+   - `source ./docker-aliases.zsh`
+   - `dcdev up -d --build`
+   - URLs: app en `http://localhost:${WEB_PORT:-8080}`, phpMyAdmin en `http://localhost:${PMA_PORT:-8090}`
+6) Crear Laravel dentro de `src` (usar raíz `.` para que Nginx/PHP ya apunten bien):
+   - `dcdev composer create-project laravel/laravel .`
+7) Configurar `src/.env` de Laravel:
+   - DB_HOST=mysql; DB creds según `mysql/.env`; APP_URL con tu host.
+8) Inicializar app:
+   - `dcdev exec php php artisan key:generate`
+   - `dcdev exec php php artisan migrate`
+9) Empezar a codificar:
+   - Edita en `./src`; usa `dcdev exec php php artisan route:list`, `dcdev exec php php artisan make:controller ...`, etc.
 
-## Despliegue con rsync
-- Usa el archivo `exclude-for-prod.txt` para excluir dev/caches/secretos al copiar: 
-  ```bash
-  rsync -avz --exclude-from='exclude-for-prod.txt' /path/local/ /ruta/en/servidor/
-  ```
-- En el servidor copia las plantillas: `cp mysql/.env.example mysql/.env` y `cp src/.env.example src/.env`, luego ajusta credenciales y genera `APP_KEY`.
-- En prod, `vendor` se genera en el build (stage vendor con `composer install --no-dev`); no es necesario subir `src/vendor/` por rsync.
-- Asegúrate de incluir `src/public` en el rsync; Nginx lo copia en la imagen. No excluyas `src/public/` en `exclude-for-prod.txt`.
+## Operación diaria (dev)
+- Arrancar/parar: `dcdev up -d` / `dcdev down`
+- Composer: `dcdev composer install` / `dcdev composer update`
+- Artisan: `dcdev exec php php artisan <cmd>`
+- Logs nginx: `dcdev logs server -f`
+- Logs php-fpm: `dcdev logs php -f`
 
-## Operación segura con carpeta sincronizada (`mysql_dev_data`)
-- Antes de cambiar de máquina o suspender: `docker compose down` (o `dcdev down`).
-- Espera a que termine la sincronización de `mysql_dev_data/` (Syncthing/Drive/Dropbox/rsync).
-- En la otra máquina: levantar de nuevo (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`).
+## Producción / Staging
+- Prerrequisitos: `src/composer.json` (ideal también `composer.lock`) y `src/public` deben existir antes de `dcprod up -d --build` (el build genera `vendor/` dentro de la imagen).
+- Levantar: `dcprod up -d --build`
+- Detener: `dcprod down`
 
-## Apertura de puertos (seguridad)
-- Asegúrate de abrir el puerto público que uses para la app (`WEB_PORT`) en el firewall del host.
-- Ejemplo firewalld (RHEL/CentOS/Fedora):
-  ```bash
-  sudo firewall-cmd --permanent --add-port=8081/tcp
-  sudo firewall-cmd --reload
-  ```
-- En otras distros, usa el equivalente (ufw/iptables) o la herramienta de tu proveedor cloud.
+## Deploy (rsync)
+- Comando sugerido: `rsync -avz --exclude-from='exclude-for-prod.txt' ./ user@server:/ruta/`
+- No excluir `src/public/` (Nginx lo copia en el build).
+- No subir `mysql_dev_data`, `mysql/.env`, `src/.env`.
+- Vendor: se genera en el build (stage vendor con `composer install --no-dev`); no es necesario subir `src/vendor/`.
 
-## Parar y limpiar
-- Detener: `docker compose down`
-- Detener y borrar datos de MySQL: `docker compose down -v`
+## Notas de seguridad
+- phpMyAdmin sólo en dev (no está en el compose base/prod).
+- `mysql/.env` y `src/.env` no se versionan ni se suben a producción.
+- Expón sólo los puertos necesarios (`WEB_PORT`, opcional `PMA_PORT` en dev).
 
-## Notas y buenas prácticas
-- Simplificado a 2 archivos, sin perfiles. Datos dev en `mysql_dev_data/` fuera de git; datos prod en volumen `mysql_data`.
-- Mantén `.dockerignore` al día para builds rápidos (ya ignora vendor/node_modules, storage, cache, .env, etc.).
-- Para CI/CD, puedes añadir pasos de `composer install --no-dev` y cacheo de config durante el build del stage `app`.
+## Troubleshooting
+- phpMyAdmin no conecta: verifica que `mysql/.env` existe y el healthcheck de MySQL está sano; revisa `dcdev logs mysql`.
+- Build prod falla por vendor: asegúrate de tener `src/composer.json` (y opcional `composer.lock`) antes de `dcprod build php`.
+- 404/403 en Nginx: confirma que `src/public` existe y contiene `index.php`.
+- Permisos en dev: usa tus UID/GID en `.env` (`UID=$(id -u) GID=$(id -g)` al levantar).
+- Red/borrado: si tienes residuos, `dcdev down -v` elimina volúmenes (nota: borra datos dev en `mysql_dev_data`).
