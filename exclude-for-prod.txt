@@ -4,12 +4,12 @@
 .DS_Store
 *.log
 
-# Infra dev / plantilla
+# Infra dev / plantilla (no necesario en prod)
 docker-compose.dev.yml
 docker-aliases.zsh
 proyecto.txt
+generar_proyecto_txt.sh
 treecat.py
-generar_proyeecto_txt.sh
 
 # (Opcional) docs
 README.md
@@ -31,6 +31,9 @@ src/.env.staging
 src/.env.testing
 src/auth.json
 
+# Dependencias (en prod se regeneran en build con composer)
+src/vendor/
+
 # Frontend / caches (no subir)
 src/node_modules/
 src/.npm/
@@ -39,7 +42,7 @@ src/.pnpm-store/
 src/.cache/
 src/.vite/
 
-# Laravel runtime (mejor no sobreescribir en deploy)
+# Laravel runtime (no sobreescribir en deploy)
 src/bootstrap/cache/
 src/storage/
 
