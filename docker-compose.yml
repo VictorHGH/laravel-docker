@@ -1,6 +1,7 @@
 version: '3.9'
 networks:
   laravel-docker:
+    name: "${PROJECT_NAME}-net"
 
 services:
 
@@ -57,3 +58,4 @@ services:
 
 volumes:
   mysql_data:
+    name: "${PROJECT_NAME}-mysql-data"

@@ -20,11 +20,11 @@ Atajos opcionales
 - Docker y Docker Compose v2.
 - Puertos libres: 8080 (app por defecto) y 8090 solo para phpMyAdmin en dev. Si quieres otros puertos públicos, ajusta `WEB_PORT` (y `PMA_PORT` en dev).
 - El directorio `mysql_dev_data/` debe permanecer fuera de git; ya está en `.gitignore`/`.dockerignore`. También se ignora `src/` y `mysql_data/` en git (solo infra aquí).
-- El archivo raíz `.env` (versionado) define tags/base images y puertos por defecto.
+- El archivo raíz `.env` (versionado) define `PROJECT_NAME`/`COMPOSE_PROJECT_NAME`, tags/base images y puertos por defecto. Los recursos se nombran como `${PROJECT_NAME}-net` y `${PROJECT_NAME}-mysql-data`.
 
 ## Estructura rápida
-- `docker-compose.yml`: base común (nginx + php-fpm + MySQL). Código empaquetado (`target: app`), Xdebug apagado, `APP_ENV=production`. Puerto configurable con `WEB_PORT` (app). MySQL usa volumen nombrado `mysql_data`. Imágenes basadas en tags de `.env`.
-- `docker-compose.dev.yml`: override dev (montajes de código, Xdebug, phpMyAdmin con restart relajado y `PMA_PORT`, servicio composer con imagen oficial, opcache ajustado). MySQL monta `./mysql_dev_data` para que los datos sean portátiles. Declara `networks.laravel-docker` para que funcione aunque no cargues el base.
+- `docker-compose.yml`: base común (nginx + php-fpm + MySQL). Código empaquetado (`target: app`), Xdebug apagado, `APP_ENV=production`. Puerto configurable con `WEB_PORT` (app). MySQL usa volumen nombrado `${PROJECT_NAME}-mysql-data`. Red nombrada `${PROJECT_NAME}-net`. Imágenes basadas en tags de `.env`.
+- `docker-compose.dev.yml`: override dev (montajes de código, Xdebug, phpMyAdmin con restart relajado y `PMA_PORT`, servicio composer con imagen oficial, opcache ajustado). MySQL monta `./mysql_dev_data` para que los datos sean portátiles. Declara la misma red `${PROJECT_NAME}-net` para coherencia.
 - `dockerfiles/`: nginx (copia config y `public/`), php (multi-stage con Xdebug opcional). Composer usa imagen oficial, no Dockerfile propio. Base images parametrizadas vía args/`.env`.
 - `src/`: código de la app (no se versiona aquí); en dev se monta, en prod se copia en el build base. Nginx solo copia `public/`.
 
@@ -34,7 +34,7 @@ Atajos opcionales
   cp mysql/.env.example mysql/.env
   cp src/.env.example src/.env
   ```
-  Luego rellena claves/DB y genera `APP_KEY` (`php artisan key:generate`). Si usas rsync para desplegar, añade `--exclude-from='exclude-for-prod.txt'`.
+  Luego rellena claves/DB y genera `APP_KEY` (`php artisan key:generate`). Si usas rsync para desplegar, añade `--exclude-from='exclude-for-prod.txt'`. Ajusta `PROJECT_NAME` en `.env` para nombrar red/volúmenes/contendedores.
 - Usa tus UID/GID para permisos correctos: `UID=$(id -u) GID=$(id -g)`.
 
 ## Desarrollo

@@ -12,6 +12,7 @@ export COMPOSE_FILE_DEV="$PROJECT_ROOT/docker-compose.yml:$PROJECT_ROOT/docker-c
 alias dcdev='COMPOSE_FILE="$COMPOSE_FILE_DEV" docker compose'
 
 alias dcprod='COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml" docker compose'
+# Compose leerá COMPOSE_PROJECT_NAME de .env para nombrar recursos (no hardcodear aquí).
 
 # Ejemplos:
 #  Subir dev:    dcdev up -d --build
