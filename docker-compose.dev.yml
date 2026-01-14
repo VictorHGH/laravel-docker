@@ -51,8 +51,19 @@ services:
     working_dir: /var/www/html
 
   mysql:
+    image: "mysql:${MYSQL_IMAGE_TAG}"
+    env_file:
+      - ./mysql/.env
     volumes:
       - ./mysql_dev_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$$MYSQL_ROOT_PASSWORD --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - laravel-docker
 
 networks:
   laravel-docker:
