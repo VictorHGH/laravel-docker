@@ -1,5 +1,8 @@
 src/*
 !src/.env.example
+!src/public/
+!src/public/.gitkeep
+!src/public/index.html
 mysql_data/
 mysql/.env
 mysql_dev_data/

@@ -50,7 +50,12 @@ Incluye:
 - Opcache con `validate_timestamps=1` para reflejar cambios al guardar.
 
 Comandos útiles (dev):
-- Dependencias: `docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm composer install`
+- Flujo recomendado para crear proyecto dentro de `src`:
+  - `dcdev up -d --build`
+  - `dcdev composer create-project laravel/laravel .`
+  - `dcdev exec php php artisan key:generate`
+  - `dcdev exec php php artisan migrate`
+- Dependencias puntuales: `docker compose -f docker-compose.yml -f docker-compose.dev.yml run --rm composer install`
 - APP_KEY: `docker compose -f docker-compose.yml -f docker-compose.dev.yml exec php php artisan key:generate`
 - Migraciones: `docker compose -f docker-compose.yml -f docker-compose.dev.yml exec php php artisan migrate`
 
@@ -72,7 +77,8 @@ Incluye:
   rsync -avz --exclude-from='exclude-for-prod.txt' /path/local/ /ruta/en/servidor/
   ```
 - En el servidor copia las plantillas: `cp mysql/.env.example mysql/.env` y `cp src/.env.example src/.env`, luego ajusta credenciales y genera `APP_KEY`.
-- No excluyas `src/vendor/` en prod: el PHP Dockerfile no ejecuta `composer install` (debe viajar en el rsync si ya está construido).
+- En prod, `vendor` se genera en el build (stage vendor con `composer install --no-dev`); no es necesario subir `src/vendor/` por rsync.
+- Asegúrate de incluir `src/public` en el rsync; Nginx lo copia en la imagen.
 
 ## Operación segura con carpeta sincronizada (`mysql_dev_data`)
 - Antes de cambiar de máquina o suspender: `docker compose down` (o `dcdev down`).
