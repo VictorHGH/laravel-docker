@@ -59,6 +59,16 @@ Comandos útiles (dev):
 - APP_KEY: `dcdev exec php php artisan key:generate`
 - Migraciones: `dcdev exec php php artisan migrate`
 
+## Flujo rápido (dev y prod)
+- Cargar aliases: `source ./docker-aliases.zsh`
+- Dev:
+  - `dcdev up -d --build`
+  - `dcdev composer create-project laravel/laravel .`
+  - `dcdev exec php php artisan key:generate`
+  - `dcdev exec php php artisan migrate`
+- Prod/staging:
+  - `dcprod up -d --build` (asegura `src/composer.json` y `src/public` presentes)
+
 ## Producción / Staging sin dominio
 ```bash
 UID=$(id -u) GID=$(id -g) WEB_PORT=8081 \
