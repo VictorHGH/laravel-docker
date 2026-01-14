@@ -1,11 +1,11 @@
 # Entorno Laravel con Docker (dev y prod)
 
 ## Qué es
-Base de infraestructura Docker para proyectos Laravel (este repo no versiona `./src`, solo la infra). Se trabaja con dos archivos: uno base “prod-like” y un override para desarrollo, sin perfiles; eliges entorno por el archivo que incluyes. En dev los datos de MySQL viven en `./mysql_dev_data/` (portátil y sin versionar). En prod se mantiene el volumen nombrado `mysql_data` y se incluye phpMyAdmin.
+Base de infraestructura Docker para proyectos Laravel (este repo no versiona `./src`, solo la infra). Se trabaja con dos archivos: uno base “prod-like” y un override para desarrollo, sin perfiles; eliges entorno por el archivo que incluyes. En dev los datos de MySQL viven en `./mysql_dev_data/` (portátil y sin versionar). En prod se mantiene el volumen nombrado `mysql_data` y phpMyAdmin existe solo en dev.
 
 ## Comandos rápidos
 - Desarrollo: `UID=$(id -u) GID=$(id -g) docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build`
-- Producción/Staging (sin dominio): `UID=$(id -u) GID=$(id -g) WEB_PORT=8081 PMA_PORT=8090 docker compose up -d --build` (`WEB_PORT` y `PMA_PORT` son opcionales; por defecto exponen 8080 y 8090).
+- Producción/Staging (sin dominio): `UID=$(id -u) GID=$(id -g) WEB_PORT=8081 docker compose up -d --build` (`WEB_PORT` es opcional; por defecto expone 8080).
 
 Atajos opcionales
 - Carga los aliases en cada sesión de shell (no se instalan globalmente): `source ./docker-aliases.zsh` desde la raíz del proyecto. Si estás fuera del directorio, usa la ruta absoluta al script.
@@ -16,12 +16,12 @@ Atajos opcionales
 
 ## Requisitos
 - Docker y Docker Compose v2.
-- Puertos libres: 8080 (app por defecto), 8090 (phpMyAdmin en dev y prod). Si quieres otros puertos públicos, ajusta `WEB_PORT` y `PMA_PORT`.
+- Puertos libres: 8080 (app por defecto) y 8090 solo para phpMyAdmin en dev. Si quieres otros puertos públicos, ajusta `WEB_PORT` (y `PMA_PORT` en dev).
 - El directorio `mysql_dev_data/` debe permanecer fuera de git; ya está en `.gitignore`/`.dockerignore`. También se ignora `src/` y `mysql_data/` en git (solo infra aquí).
 - El archivo raíz `.env` (versionado) define tags/base images y puertos por defecto.
 
 ## Estructura rápida
-- `docker-compose.yml`: base común (nginx + php-fpm + MySQL + phpMyAdmin). Código empaquetado (`target: app`), Xdebug apagado, `APP_ENV=production`. Puertos configurables con `WEB_PORT` (app) y `PMA_PORT` (phpMyAdmin). MySQL usa volumen nombrado `mysql_data`. Imágenes basadas en tags de `.env`.
+- `docker-compose.yml`: base común (nginx + php-fpm + MySQL). Código empaquetado (`target: app`), Xdebug apagado, `APP_ENV=production`. Puerto configurable con `WEB_PORT` (app). MySQL usa volumen nombrado `mysql_data`. Imágenes basadas en tags de `.env`.
 - `docker-compose.dev.yml`: override dev (montajes de código, Xdebug, phpMyAdmin con restart relajado, servicio composer con imagen oficial, opcache ajustado). MySQL monta `./mysql_dev_data` para que los datos sean portátiles.
 - `dockerfiles/`: nginx (copia config y `public/`), php (multi-stage con Xdebug opcional). Composer usa imagen oficial, no Dockerfile propio. Base images parametrizadas vía args/`.env`.
 - `src/`: código de la app (no se versiona aquí); en dev se monta, en prod se copia en el build base. Nginx solo copia `public/`.
@@ -55,14 +55,13 @@ Comandos útiles (dev):
 
 ## Producción / Staging sin dominio
 ```bash
-UID=$(id -u) GID=$(id -g) WEB_PORT=8081 PMA_PORT=8090 \
+UID=$(id -u) GID=$(id -g) WEB_PORT=8081 \
 docker compose up -d --build
 ```
-Acceso: `http://IP-del-servidor:${WEB_PORT:-8080}` y phpMyAdmin en `http://IP-del-servidor:${PMA_PORT:-8090}`.
+Acceso: `http://IP-del-servidor:${WEB_PORT:-8080}`.
 Incluye:
 - Código empaquetado en la imagen (`target: app`), sin montajes de host.
 - MySQL con volumen nombrado `mysql_data` (persistente en el host).
-- phpMyAdmin con `restart: unless-stopped` apuntando a MySQL.
 - Xdebug deshabilitado, `APP_ENV=production`, `APP_DEBUG=false`.
 - Tags de imágenes y puertos vienen de `.env` (puedes sobreescribirlos al exportar variables).
 
@@ -72,11 +71,10 @@ Incluye:
 - En la otra máquina: levantar de nuevo (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d`).
 
 ## Apertura de puertos (seguridad)
-- Asegúrate de abrir los puertos públicos que uses (`WEB_PORT` y `PMA_PORT`) en el firewall del host.
+- Asegúrate de abrir el puerto público que uses para la app (`WEB_PORT`) en el firewall del host.
 - Ejemplo firewalld (RHEL/CentOS/Fedora):
   ```bash
   sudo firewall-cmd --permanent --add-port=8081/tcp
-  sudo firewall-cmd --permanent --add-port=8090/tcp
   sudo firewall-cmd --reload
   ```
 - En otras distros, usa el equivalente (ufw/iptables) o la herramienta de tu proveedor cloud.

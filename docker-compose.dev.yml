@@ -41,6 +41,8 @@ services:
       PMA_HOST: mysql
       PMA_USER: root
       PMA_PASSWORD: root.pa55
+    networks:
+      - laravel-docker
 
   composer:
     image: composer:${COMPOSER_IMAGE_TAG}
